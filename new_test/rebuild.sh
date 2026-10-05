@@ -281,10 +281,12 @@ resolve_ksu_ref() {
     track="$(normalize_track "$KSU_TRACK")"
 
     case "$variant:$track" in
-        Official:'Stable(标准)') printf '%s\n' '3f388ef137c78e1ca0c92c0ada3b8717cdcc4302' ;;
-        Official:'Dev(开发)') printf '%s\n' '290609c945728fc93d85735918793567588103c1' ;;
-        SukiSU:'Stable(标准)') printf '%s\n' 'c5af9eadac43b1f0b9751471be78e6eef681554b' ;;
-        SukiSU:'Dev(开发)') printf '%s\n' 'aac170bcb86ce45516b3e2c0e2b32b57004b8f73' ;;
+        # 与 .github/scripts/resolve-ksu-ref.sh 的 Stable/Dev 层保持一致：同一 commit 在两处
+        # 独立维护，漂移会让本地构建与 CI 编出不同的内核管理器。
+        Official:'Stable(标准)') printf '%s\n' '08a3b087e49227c8a6731c5f1114998b5e25255b' ;;
+        Official:'Dev(开发)') printf '%s\n' '08a3b087e49227c8a6731c5f1114998b5e25255b' ;;
+        SukiSU:'Stable(标准)') printf '%s\n' 'cf87e3f4ddd3f6e5464d85acf56aaa6950e70841' ;;
+        SukiSU:'Dev(开发)') printf '%s\n' 'cf87e3f4ddd3f6e5464d85acf56aaa6950e70841' ;;
         # Baka-SU/BakaSU 上游没有 dev 分支（只有 main 与若干 feature 分支），故 Stable 与 Dev
         # 同钉 main HEAD 9dbce02e；旧 SHA b6706363/fb771414 在改名后的仓库里仍可达，可作回退。
         BakaSU:'Stable(标准)') printf '%s\n' '9dbce02e511ea6b6305a238b84e456f6a92e1d0b' ;;

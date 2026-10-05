@@ -407,8 +407,9 @@ jobs:
             variant="${name%%-*}"
             remainder="${name#*-}"
             kmi="${remainder%-lkm}"
-            # ABK_control_module still names its artifacts "resukisu-<kmi>-lkm"; the app
-            # looks up RootUtils.ABK_LKM_VARIANTS ids, which were renamed with the upstream.
+            # lkm.yml renamed its "resukisu" artifacts to "bakasu" alongside the upstream,
+            # but runs published before that rename stay downloadable for 90 days. Fold the
+            # retired spelling onto the id RootUtils.ABK_LKM_VARIANTS now looks up.
             case "$variant" in
               resukisu) variant="bakasu" ;;
             esac
