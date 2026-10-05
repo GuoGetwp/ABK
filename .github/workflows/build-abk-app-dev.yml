@@ -401,11 +401,23 @@ jobs:
 
           artifacts_json="$(api_get "https://api.github.com/repos/$repo/actions/runs/$run_id/artifacts?per_page=100")"
           artifact_count=0
-          printf '%s' "$artifacts_json" | jq -r '.artifacts[] | select(.name | endswith("-lkm")) | [.name, .archive_download_url] | @tsv' |
+          # Only the stable tier: artifact names are <variant>-<track>-<kmi>-lkm, so a dev
+          # build of the same variant+KMI would land on the same <kmi>_kernelsu.ko and
+          # whichever downloaded last would win. dev-* artifacts are produced for inspection
+          # only, and are never bundled into the app.
+          printf '%s' "$artifacts_json" | jq -r '.artifacts[] |
+            select((.name | test("-stable-.*-lkm$")) or ((.name | endswith("-lkm")) and ((.name | contains("-stable-")) | not) and ((.name | contains("-dev-")) | not))) |
+            [.name, .archive_download_url] | @tsv' |
           while IFS=$'\t' read -r name url; do
             [ -n "$name" ] || continue
             variant="${name%%-*}"
             remainder="${name#*-}"
+            # Current names are <variant>-<track>-<kmi>-lkm; runs from before the track
+            # field existed are <variant>-<kmi>-lkm and stay downloadable for 90 days.
+            head="${remainder%%-*}"
+            if [ "$head" = "stable" ] || [ "$head" = "dev" ]; then
+              remainder="${remainder#*-}"
+            fi
             kmi="${remainder%-lkm}"
             # lkm.yml renamed its "resukisu" artifacts to "bakasu" alongside the upstream,
             # but runs published before that rename stay downloadable for 90 days. Fold the
