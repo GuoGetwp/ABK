@@ -123,11 +123,13 @@ KERNEL_VERSIONS = ["5.10", "5.15", "6.1", "6.6", "6.12"]
 
 MATRIX_TARGETS = ["a12", "a13", "a14", "a15", "a16"]
 MATRIX_TARGETS_ALL = MATRIX_TARGETS + ["both", "full", "all-managers"]
-KSU_ALL_VARIANTS = ["Official", "SukiSU", "ReSukiSU"]
+KSU_ALL_VARIANTS = ["Official", "SukiSU", "BakaSU"]
 MANAGER_VARIANT_ALIASES = {
     "official": "Official",
     "sukisu": "SukiSU",
-    "resukisu": "ReSukiSU",
+    "bakasu": "BakaSU",
+    # Retired spelling of "bakasu"; older app builds can still dispatch with it.
+    "resukisu": "BakaSU",
     "none": "None",
 }
 
@@ -151,7 +153,7 @@ WORKFLOW_RUNTIME_NAMES = {
     "all-managers-full-feature-matrix.yml": "全管理器全矩阵编译",
 }
 
-KSU_VARIANTS = ["None", "Official", "SukiSU", "ReSukiSU"]
+KSU_VARIANTS = ["None", "Official", "SukiSU", "BakaSU"]
 KSU_BRANCH_MAP = {
     "stable": "Stable(标准)", "Stable": "Stable(标准)",
     "latest": "Latest(最新)", "Latest": "Latest(最新)",
@@ -182,10 +184,10 @@ def supports_kpm(variant, ksu_branch=None, *, oneplus=False):
     Keep this aligned with Android's KernelSupport.isKpmSupported contract.
     """
     if oneplus:
-        return variant in {"SukiSU", "ReSukiSU"}
+        return variant in {"SukiSU", "BakaSU"}
     if variant == "SukiSU":
         return True
-    if variant != "ReSukiSU":
+    if variant != "BakaSU":
         return False
     return resolve_ksu_branch(ksu_branch) in {
         "Stable(标准)",
@@ -360,7 +362,7 @@ def invalid_build_argument(args):
     if manager_variants:
         raw = manager_variants.strip()
         if raw.lower() not in {"all", "*"}:
-            allowed = {"official", "sukisu", "resukisu", "none"}
+            allowed = set(MANAGER_VARIANT_ALIASES)
             tokens = [
                 token.strip().lower().replace("-", "").replace("_", "")
                 for token in raw.split(",")
@@ -4142,7 +4144,7 @@ def cmd_build(args):
         variants = (
             KSU_ALL_VARIANTS
             if args.ksu_variant == "all"
-            else [args.ksu_variant or "ReSukiSU"]
+            else [args.ksu_variant or "BakaSU"]
         )
         for variant in variants:
             if args.kpm and not supports_kpm(variant, args.ksu_branch):
@@ -4182,7 +4184,7 @@ def cmd_build(args):
         variants = (
             KSU_ALL_VARIANTS
             if args.ksu_variant == "all"
-            else [args.ksu_variant or "ReSukiSU"]
+            else [args.ksu_variant or "BakaSU"]
         )
         for target in targets:
             for variant in variants:
