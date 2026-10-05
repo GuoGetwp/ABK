@@ -1,4 +1,3 @@
-import importlib.util
 import pathlib
 import shutil
 import subprocess
@@ -15,20 +14,27 @@ APP_DEV_WORKFLOW_PATH = ROOT / ".github" / "workflows" / "build-abk-app-dev.yml"
 
 SUKISU_URL = "https://github.com/SukiSU-Ultra/SukiSU-Ultra.git"
 
-# The broken call site and the shape of the fix, quoted from upstream 932d9bd2's
-# regression. Anchoring on the whole call rather than on any single line means a
-# cosmetic upstream reformat breaks the test loudly instead of silently unpatching.
-BROKEN_CALL = 'crate::module::exec_stage_lua(stage, block, "kernelsu")'
-FIXED_CALL = "crate::module::exec_stage_lua(stage, !matches!(wait, ScriptWait::NoWait), \"kernelsu\")"
+MARKER = "ABK upstream fix: exec_stage_lua call left out of step with run_stage"
+FIXED_CALL = (
+    'crate::module::exec_stage_lua(stage, !matches!(wait, ScriptWait::NoWait), "kernelsu")'
+)
+CFG_GATE = '#[cfg(all(target_os = "android", target_arch = "aarch64"))]'
+
+# Each broken form upstream has shipped, with the compiler error it produces. 932d9bd2
+# left the call naming `block`; 1c56b5e9 then swapped it to `wait` without widening
+# exec_stage_lua. Both are cfg-gated away from upstream's own host-target CI.
+BROKEN_FORMS = {
+    "E0425": 'crate::module::exec_stage_lua(stage, block, "kernelsu")',
+    "E0308": 'crate::module::exec_stage_lua(stage, wait, "kernelsu")',
+}
 
 
 class PatchKsudScriptWaitTests(unittest.TestCase):
-    """The carried fix for the upstream ksud build break.
+    """The carried fix for the upstream ksud build breaks.
 
-    Upstream replaced run_stage's `block: bool` with `wait: ScriptWait` and left one
-    call site naming `block`, which only compiles under an Android aarch64 target.
-    Upstream's own CI never builds that target, so the break is invisible to them and
-    this repo has to carry the fix.
+    Upstream has twice broken the one call site in run_stage that only an Android
+    aarch64 build compiles. This patch carries the fix so the app builds keep working,
+    and no-ops once upstream compiles it.
     """
 
     def _run(self, tmp: pathlib.Path, source: str, script: pathlib.Path | None = None):
@@ -47,8 +53,8 @@ class PatchKsudScriptWaitTests(unittest.TestCase):
         return result, (ksud_src / "init_event.rs").read_text(encoding="utf-8")
 
     @staticmethod
-    def _broken_source() -> str:
-        """The surrounding block exactly as upstream 932d9bd2 left it.
+    def _source(call: str) -> str:
+        """The call site exactly as upstream writes it.
 
         The patch anchors on the comment, the cfg gate and the call together, so the
         fixture has to carry all three -- a fixture that only spelled the call would
@@ -64,40 +70,68 @@ class PatchKsudScriptWaitTests(unittest.TestCase):
             "    }\n"
             "\n"
             "    // run lua stage script\n"
-            '    #[cfg(all(target_os = "android", target_arch = "aarch64"))]\n'
-            '    if let Err(e) = crate::module::exec_stage_lua(stage, block, "kernelsu") {\n'
+            f"    {CFG_GATE}\n"
+            f"    if let Err(e) = {call} {{\n"
             '        warn!("Failed to exec {stage} lua: {e}");\n'
             "    }\n"
             "}\n"
         )
 
-    def test_patches_the_broken_call_site(self):
+    def test_patches_the_original_e0425_form(self):
+        """932d9bd2: run_stage kept its old `block` name at the lua call site."""
         with tempfile.TemporaryDirectory() as temp_dir:
             result, patched = self._run(
-                pathlib.Path(temp_dir), self._broken_source()
+                pathlib.Path(temp_dir), self._source(BROKEN_FORMS["E0425"])
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(FIXED_CALL, patched)
-            self.assertNotIn(BROKEN_CALL, patched)
-            # The cfg gate must survive, or the fix would compile on hosts that
-            # deliberately exclude this path.
-            self.assertIn('#[cfg(all(target_os = "android", target_arch = "aarch64"))]', patched)
-            # run_stage's own signature must not be touched: the fix reads `wait`, it
-            # does not reintroduce `block`.
+            self.assertNotIn(BROKEN_FORMS["E0425"], patched)
+            self.assertIn(CFG_GATE, patched)
             self.assertIn("pub fn run_stage(stage: &str, wait: ScriptWait) {", patched)
+
+    def test_patches_the_reworked_e0308_form(self):
+        """1c56b5e9: the call now passes `wait`, but exec_stage_lua still wants a bool.
+
+        This is the form current upstream main ships. It arrived the day after the fix
+        was written, so a patch that only knew the first shape would have silently
+        no-op'd its way past a build break it was written to prevent.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result, patched = self._run(
+                pathlib.Path(temp_dir), self._source(BROKEN_FORMS["E0308"])
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(FIXED_CALL, patched)
+            self.assertNotIn(BROKEN_FORMS["E0308"], patched)
+            self.assertIn(CFG_GATE, patched)
+
+    def test_reports_which_upstream_shape_it_found(self):
+        """The label names the compiler error, so the log says what was hit.
+
+        Without it a broken build reports only that some call was rewritten, and the
+        next person to look has to diff upstream by hand to work out which revision this
+        patch is now carrying.
+        """
+        for name, call in BROKEN_FORMS.items():
+            with tempfile.TemporaryDirectory() as temp_dir, self.subTest(form=name):
+                result, _ = self._run(pathlib.Path(temp_dir), self._source(call))
+
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn(name, result.stdout)
 
     def test_is_idempotent(self):
         """Running twice must not double-apply the fix.
 
-        The workflow calls both patch scripts once per job, but a retried job re-runs the
-        whole step against a fresh clone, and a locally cached tree could be patched
-        twice. Without the marker guard the second pass would rewrite a line that no
-        longer matches and fail the build.
+        The workflow calls this once per job, but a retried job re-runs the whole step
+        against a fresh clone, and a locally cached tree could be patched twice. Without
+        the marker guard the second pass would rewrite a line that no longer matches and
+        fail the build.
         """
         with tempfile.TemporaryDirectory() as temp_dir:
             tmp = pathlib.Path(temp_dir)
-            first, patched = self._run(tmp, self._broken_source())
+            first, patched = self._run(tmp, self._source(BROKEN_FORMS["E0308"]))
             self.assertEqual(first.returncode, 0, first.stderr)
 
             second, again = self._run(tmp, patched)
@@ -114,19 +148,20 @@ class PatchKsudScriptWaitTests(unittest.TestCase):
         is the honest outcome -- the alternative is a silently mangled file that still
         fails to build.
         """
-        with tempfile.TemporaryDirectory() as temp_dir:
-            result, patched = self._run(
-                pathlib.Path(temp_dir),
-                "pub fn run_stage(stage: &str, wait: ScriptWait) {\n"
-                '    if let Err(e) = crate::module::exec_stage_lua(stage, block, "kernelsu") {\n'
-                "        handle(stage, e);\n"
-                "    }\n"
-                "}\n",
-            )
+        for name, call in BROKEN_FORMS.items():
+            with tempfile.TemporaryDirectory() as temp_dir, self.subTest(form=name):
+                result, patched = self._run(
+                    pathlib.Path(temp_dir),
+                    "pub fn run_stage(stage: &str, wait: ScriptWait) {\n"
+                    f"    if let Err(e) = {call} {{\n"
+                    "        handle(stage, e);\n"
+                    "    }\n"
+                    "}\n",
+                )
 
-            self.assertEqual(result.returncode, 1, result.stdout)
-            self.assertIn("surrounding block does not match", result.stderr)
-            self.assertIn(BROKEN_CALL, patched)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn("surrounding block does not match", result.stderr)
+                self.assertIn(call, patched)
 
     def test_exits_loudly_when_the_source_file_is_gone(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -144,14 +179,12 @@ class PatchKsudScriptWaitTests(unittest.TestCase):
     def test_becomes_a_no_op_once_upstream_compiles(self):
         """The exit condition for this whole fix: upstream no longer needs carrying.
 
-        When the broken call is simply absent -- upstream fixed it, or refactored the
-        call away -- the patch must succeed silently. Failing here would break the build
-        at exactly the moment the patch stops being needed.
+        When the broken call is simply absent -- upstream fixed it, or refactored the call
+        away -- the patch must succeed silently. Failing here would break the build at
+        exactly the moment the patch stops being needed.
         """
         with tempfile.TemporaryDirectory() as temp_dir:
-            already_fixed = self._broken_source().replace(
-                BROKEN_CALL, FIXED_CALL
-            )
+            already_fixed = self._source(FIXED_CALL)
             result, patched = self._run(pathlib.Path(temp_dir), already_fixed)
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -198,9 +231,6 @@ class PatchKsudScriptWaitTests(unittest.TestCase):
                     'python3 .github/scripts/patch-ksud-script-wait.py "$source_dir"',
                     workflow,
                 )
-                # The uapi patch is guarded by a grep that asserts it landed; the new
-                # one relies on the script's own exit status, so nothing to mirror.
-                self.assertNotIn('SUKISU_ULTRA_REF: main"', workflow.replace("SUKISU_ULTRA_REF: main\n", ""))
 
     def test_uapi_patch_still_applies_beside_it(self):
         """Both patches edit the same tree, sequentially, in one job.
