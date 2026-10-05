@@ -394,11 +394,14 @@ jobs:
             curl -fsSL -L "$url" -o "$out"
           }
 
-          runs_json="$(api_get "https://api.github.com/repos/$repo/actions/workflows/$workflow/runs?status=success&per_page=1")"
-          run_id="$(printf '%s' "$runs_json" | jq -r '.workflow_runs[0].id // empty')"
-          run_sha="$(printf '%s' "$runs_json" | jq -r '.workflow_runs[0].head_sha // empty')"
+          # Reuse the run the inputs step already picked rather than asking the API a
+          # second time. Two independent lookups could name different runs -- and this
+          # one filters by created_at and live artifacts precisely because the newest
+          # "successful" run is not always the newest run, nor always bundleable.
+          run_id="${{ steps.abk-inputs.outputs.lkm_run_id }}"
+          run_sha="${{ steps.abk-inputs.outputs.lkm_head_sha }}"
           if [ -z "$run_id" ]; then
-            echo "::error::未找到 $repo 的成功 LKM action"
+            echo "::error::未找到 $repo 可用的成功 LKM action"
             exit 1
           fi
 
