@@ -12,6 +12,7 @@ on:
       - ".github/workflows/build-abk-app.yml"
       - ".github/actions/prepare-abk-app-inputs/**"
       - ".github/scripts/patch-ksud-uapi-compat.py"
+      - ".github/scripts/patch-ksud-script-wait.py"
   pull_request:
     paths:
       - "app/**"
@@ -22,6 +23,7 @@ on:
       - ".github/workflows/build-abk-app.yml"
       - ".github/actions/prepare-abk-app-inputs/**"
       - ".github/scripts/patch-ksud-uapi-compat.py"
+      - ".github/scripts/patch-ksud-script-wait.py"
 
 jobs:
   build:
@@ -143,6 +145,7 @@ jobs:
           git clone --depth 1 --branch "$SUKISU_ULTRA_REF" "$SUKISU_ULTRA_REPO" "$source_dir"
           commit="$(git -C "$source_dir" rev-parse HEAD)"
           python3 .github/scripts/patch-ksud-uapi-compat.py "$source_dir"
+          python3 .github/scripts/patch-ksud-script-wait.py "$source_dir"
           grep -q "ABK legacy uapi=0 compatibility" "$source_dir/userspace/ksud/src/ksucalls.rs"
           mkdir -p "$target_dir" "$jni_target_dir"
 
