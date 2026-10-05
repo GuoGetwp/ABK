@@ -222,7 +222,7 @@ class ArtifactGitHubClient:
             "artifacts": [
                 {
                     "id": 77,
-                    "name": "ReSukiSU_kernel-test",
+                    "name": "BakaSU_kernel-test",
                     "size_in_bytes": 128,
                 }
             ]
@@ -434,7 +434,7 @@ class CommandBehaviorTests(unittest.TestCase):
             "sub_level": None,
             "os_patch_level": "2026-01",
             "revision": None,
-            "ksu_variant": "ReSukiSU",
+            "ksu_variant": "BakaSU",
             "dry_run": True,
         }
         for susfs, expected in ((None, "true"), (True, "false")):
@@ -703,7 +703,7 @@ class CommandBehaviorTests(unittest.TestCase):
         _, output = self._run_build(
             client,
             matrix="full",
-            ksu_variant="ReSukiSU",
+            ksu_variant="BakaSU",
             dry_run=True,
             **defaulted,
         )
@@ -721,12 +721,12 @@ class CommandBehaviorTests(unittest.TestCase):
             self.assertIn(f'"{input_name}": "true"', output)
         self.assertEqual(0, client.create_fork_calls)
 
-    def test_resukisu_dev_dry_run_disables_kpm(self):
+    def test_bakasu_dev_dry_run_disables_kpm(self):
         client = RecordingGitHubClient(fork=None)
 
         result, output = self._run_build(
             client,
-            ksu_variant="ReSukiSU",
+            ksu_variant="BakaSU",
             ksu_branch="Dev",
             kpm=True,
             kpm_password="secret",
@@ -736,23 +736,23 @@ class CommandBehaviorTests(unittest.TestCase):
         self.assertEqual(0, result, output)
         self.assertIn('"use_kpm": "false"', output)
         self.assertNotIn('"kpm_password"', output)
-        self.assertIn("ReSukiSU", output)
+        self.assertIn("BakaSU", output)
 
-    def test_oneplus_resukisu_dry_run_enables_supported_kpm(self):
+    def test_oneplus_bakasu_dry_run_enables_supported_kpm(self):
         client = RecordingGitHubClient(fork=None)
 
         result, output = self._run_build(
             client,
             oneplus=True,
             device="oneplus_12_b",
-            ksu_variant="ReSukiSU",
+            ksu_variant="BakaSU",
             kpm=True,
             dry_run=True,
         )
 
         self.assertEqual(0, result, output)
         self.assertIn('"use_kpm": "true"', output)
-        self.assertIn("ReSukiSU", output)
+        self.assertIn("BakaSU", output)
 
     def test_oneplus_15t_dry_run_dispatches_sm8850_android16(self):
         client = RecordingGitHubClient(fork=None)

@@ -254,7 +254,7 @@ abk build --oneplus --device oneplus_15
 - MTK CPU 设备 → 代理优化自动禁用
 - SUSFS 支持 android14/6.1、android15/6.6 和 android16/6.12
 - android16/6.12 自动关闭不兼容的 legacy lz4kd
-- KPM 仅对 SukiSU / ReSukiSU 生效；其他变体会自动禁用
+- KPM 仅对 SukiSU / BakaSU 生效；其他变体会自动禁用
 - 全管理器 OnePlus 矩阵由工作流按每个 KernelSU 变体独立决定 KPM
 
 不兼容的选项会被自动禁用并给出警告。
@@ -357,7 +357,7 @@ CLI 与 Android App 使用相同的远程 Secret 和公钥资产，但启用/禁
 abk --json --version
 abk --json whoami
 abk --json status --limit 20
-abk --json build --matrix a14 --ksu ReSukiSU --force
+abk --json build --matrix a14 --ksu BakaSU --force
 abk --json artifacts --run-id 12345 --download --artifact-id 67890
 ```
 
@@ -380,7 +380,7 @@ abk list
 | `--matrix all-managers` | 全管理器全矩阵编译 |
 | `--oneplus` | OnePlus/Oplus 设备 |
 | `--source-repo HTTPS_URL` | 类 LineageOS 源码构建，需同时指定 `--source-ref` 和 `--os-patch-level` |
-| `--ksu all` | 全 KSU 变体 (Official + SukiSU + ReSukiSU) |
+| `--ksu all` | 全 KSU 变体 (Official + SukiSU + BakaSU) |
 
 ## 内核版本参数 / Kernel Version Options
 
@@ -426,8 +426,8 @@ android16/6.12）。
 | `None` | 无 Root |
 | `Official` | KernelSU 官方版 |
 | `SukiSU` | SukiSU Ultra |
-| `ReSukiSU` | ReSukiSU (默认) |
-| `all` | 全部 (Official + SukiSU + ReSukiSU) |
+| `BakaSU` | BakaSU (默认) |
+| `all` | 全部 (Official + SukiSU + BakaSU) |
 
 | 分支 / Branch | 描述 / Description |
 |------|------|

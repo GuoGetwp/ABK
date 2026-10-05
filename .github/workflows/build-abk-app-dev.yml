@@ -407,6 +407,11 @@ jobs:
             variant="${name%%-*}"
             remainder="${name#*-}"
             kmi="${remainder%-lkm}"
+            # ABK_control_module still names its artifacts "resukisu-<kmi>-lkm"; the app
+            # looks up RootUtils.ABK_LKM_VARIANTS ids, which were renamed with the upstream.
+            case "$variant" in
+              resukisu) variant="bakasu" ;;
+            esac
             out_dir="$target_dir/$variant"
             tmp_dir="$(mktemp -d)"
             mkdir -p "$out_dir"

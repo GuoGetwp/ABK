@@ -156,7 +156,7 @@ class DesktopKernelSupport {
   static const List<String> ksuVariantOptions = <String>[
     'Official',
     'SukiSU',
-    'ReSukiSU',
+    'BakaSU',
     'None',
   ];
 
@@ -267,7 +267,7 @@ class DesktopKernelSupport {
     final normalizedBranch = normalizeKsuBranch(ksuBranch);
     if (normalizedVariant == 'None') return false;
     if (normalizedVariant == 'Official') return false;
-    if (normalizedVariant == 'ReSukiSU' &&
+    if (normalizedVariant == 'BakaSU' &&
         !const <String>{'Stable', 'Custom'}.contains(normalizedBranch)) {
       return false;
     }
@@ -275,7 +275,7 @@ class DesktopKernelSupport {
   }
 
   static String normalizeKsuVariant(String value) {
-    return ksuVariantOptions.contains(value) ? value : 'ReSukiSU';
+    return ksuVariantOptions.contains(value) ? value : 'BakaSU';
   }
 
   static String normalizeKsuBranch(String value) {
