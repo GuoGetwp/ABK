@@ -36,7 +36,7 @@ class SukiSUExecSessionTests(unittest.TestCase):
         cls.patcher = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(cls.patcher)
         workflow = WORKFLOW.read_text(encoding="utf-8")
-        step = workflow.split("- name: 最终修复 SukiSU/ReSukiSU 源码兼容", 1)[1]
+        step = workflow.split("- name: 最终修复 SukiSU/BakaSU 源码兼容", 1)[1]
         code = textwrap.dedent(step.split("python3 - <<'PY'\n", 1)[1].split("\n          PY", 1)[0])
         functions = [node for node in ast.parse(code).body if isinstance(node, ast.FunctionDef)]
         # Workflow progress messages are not test output; Windows CI may use
